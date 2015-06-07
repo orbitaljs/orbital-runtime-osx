@@ -1,8 +1,8 @@
-language: 
-  - bash
+language: bash
+sudo: required
 
 before_install:
-  - apt-get -qq install p7zip
+  - sudo apt-get -qq install p7zip
 
 script:
     - bash build.sh
