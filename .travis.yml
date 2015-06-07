@@ -1,4 +1,6 @@
-language: bash
+language: 
+  - bash
+  - objective-c
 
 os:
   - osx
