@@ -1,9 +1,8 @@
 language: 
   - bash
-  - objective-c
 
-os:
-  - osx
+before_install:
+  - apt-get -qq install p7zip
 
 script:
     - bash build.sh
