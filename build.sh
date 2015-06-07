@@ -1,20 +1,24 @@
 #/bin/bash
 set -euo pipefail
-#rm -rf _tmp || true;
-#mkdir _tmp
-cd _tmp
-rm log
 
-if [ -f jdk-8u45-macosx-x64.dmg ];
+mkdir _dl || true
+
+rm -rf _tmp || true
+mkdir _tmp
+
+if [ -f _dl/jdk-8u45-macosx-x64.dmg ];
 then
 	echo "Already downloaded, skipping"
 else
-	wget --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie;" \
+	wget -P _dl --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie;" \
 		http://download.oracle.com/otn-pub/java/jdk/8u45-b14/jdk-8u45-macosx-x64.dmg
 fi
 
+cd _tmp
+rm log || true
+
 echo Extracting outer DMG
-7z -y x jdk*.dmg >> log
+7z -y x ../_dl/jdk*.dmg >> log
 echo Extracting HFS
 7z -y x *.hfs >> log
 rm [0-9].*
