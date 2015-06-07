@@ -1,0 +1,8 @@
+language: bash
+
+os:
+  - osx
+
+script:
+    - bash build.sh
+
