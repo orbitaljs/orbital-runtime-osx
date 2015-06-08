@@ -56,3 +56,36 @@ echo Extracting Electron
 echo ===================
 echo
 
+echo Extracting Electron Shell
+7z x ../_dl/electron*.zip >> log
+
+echo Moving JRE
+mv jdk/Contents/Home/jre Electron.app/Contents/Java
+
+pushd Electron.app/Contents/Java > /dev/null
+
+rm -rf bin/
+rm -rf lib/deploy/
+rm -rf lib/deploy.jar
+rm -rf lib/javaws.jar
+rm -rf lib/libdeploy.dylib
+rm -rf lib/libnpjp2.dylib
+rm -rf lib/plugin.jar
+rm -rf lib/security/javaws.policy
+
+popd
+
+echo Installing node-ffi
+mkdir -p Electron.app/Contents/lib/node
+pushd Electron.app/Contents/lib/node > /dev/null
+
+export npm_config_disturl=https://atom.io/download/atom-shell
+export npm_config_target=0.25.0
+export npm_config_arch=x64
+HOME=~/.electron-gyp npm install ffi >> log
+
+mv node_modules/ffi .
+rmdir node_modules
+
+popd
+
