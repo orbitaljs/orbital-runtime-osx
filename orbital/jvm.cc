@@ -2,6 +2,7 @@
 #include <v8.h>
 #include <dlfcn.h>
 #include <string.h>
+#include <stdlib.h>
 #include "darwin/jni.h"
 
 using namespace v8;
