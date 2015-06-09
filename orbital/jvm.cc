@@ -53,10 +53,10 @@ void RunMain(const v8::FunctionCallbackInfo<Value>& args) {
   }
 
   String::Utf8Value value(args[0]->ToString());
-  jclass cls = env->FindClass("com/codano/hybridapp/HybridAppMain");
+  jclass cls = env->FindClass("com/codano/orbital/OrbitalAppMain");
   if (!cls) {
     isolate->ThrowException(Exception::TypeError(
-        String::NewFromUtf8(isolate, "Class not found: com.codano.hybridapp.HybridAppMain")));  
+        String::NewFromUtf8(isolate, "Class not found: com.codano.codano.OrbitalAppMain")));  
     return;
   }
 

@@ -2,6 +2,7 @@ var jvm = require('bindings')('jvm');
 var rpc = require('./rpc');
 var path = require('path');
 var process = require('process');
+var fs = require('fs');
 var app = require('app');
 
 var initialized = false;
@@ -25,7 +26,19 @@ function initialize(options) {
 			var jvmPath = path.join(module.filename, "../../../../Java/lib/server/libjvm.dylib");
 			console.log(jvmPath);
 			jvm.load(jvmPath);
-			jvm.init("-verbose:class", "-Djava.class.path=/tmp/runtime-osx/orbital-java/target/orbital-app-0.1.jar");
+			var jarFolder = path.join(module.filename, "../../../../Java");
+			var files = fs.readdirSync(jarFolder);
+			var cp = [];
+			files.forEach(function(file) {
+				if (file.indexOf('.jar') != -1) {
+					cp.push(jarFolder + "/" + file);
+				}
+			});
+
+			console.log(cp);
+
+			// TODO: semicolon on windows
+			jvm.init("-verbose:class", "-Djava.class.path=" + cp.join(':'));
 			jvm.run(options.main);
 		} catch (e) {
 			console.log("Failed to initialize the JVM", e);
