@@ -2,4 +2,5 @@
 _tmp
 _dl
 
-node-libjli/build
+orbital/build
+orbital-java/target

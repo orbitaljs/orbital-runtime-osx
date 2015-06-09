@@ -1,0 +1,10 @@
+{
+  "name": "orbital",
+  "version": "0.0.0",
+  "description": "OrbitalJS suport module",
+  "main": "index.js",
+  "gypfile": true,
+  "dependencies": {
+    "bindings": "~1.2.1"
+  }
+}

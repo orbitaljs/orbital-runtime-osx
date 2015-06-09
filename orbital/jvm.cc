@@ -52,10 +52,10 @@ void RunMain(const v8::FunctionCallbackInfo<Value>& args) {
   }
 
   String::Utf8Value value(args[0]->ToString());
-  jclass cls = env->FindClass(*value);
+  jclass cls = env->FindClass("com/codano/hybridapp/HybridAppMain");
   if (!cls) {
     isolate->ThrowException(Exception::TypeError(
-        String::NewFromUtf8(isolate, "Class not found")));  
+        String::NewFromUtf8(isolate, "Class not found: com.codano.hybridapp.HybridAppMain")));  
     return;
   }
 
@@ -66,7 +66,7 @@ void RunMain(const v8::FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  env->CallStaticVoidMethod(cls, mid);
+  env->CallStaticVoidMethod(cls, mid, *value);
   args.GetReturnValue().Set(Number::New(isolate, 0));
 }
 
