@@ -19,6 +19,9 @@ function initialize(options) {
 
 	initialized = true;
 
+	// TODO: all these paths assume a mac-style .app package
+	// This is obviously not going to work on windows
+
 	// If we've been passed the PIPE environment variable, that means we're in inverted mode
 	if (!process.env.PIPE) {
 		console.log("Initializing JVM");

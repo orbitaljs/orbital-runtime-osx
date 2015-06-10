@@ -5,6 +5,10 @@ var child_process = require('child_process');
 
 var SYNC_BYTE = new Buffer([0xff]);
 
+var TYPE_NULL = 0;
+var TYPE_JSON = 1;
+var TYPE_BINARY = 2;
+
 var RPC = function() {
 	this.__packet = new Buffer(0);
 	this.__seqId = 0;
@@ -63,7 +67,29 @@ RPC.prototype.registerEndpoint = function(endpoint, fn) {
 	this.__endpoints[endpoint] = fn;
 }
 
-RPC.prototype.call = function(endpoint, data, cb) {
+/**
+ * Calls the given endpoint with the given arguments. If a callback function is passed in 'args', 
+ * it will be called with the result of the function. The callback must be the last argument to 
+ * the function.
+ */
+RPC.prototype.call = function(endpoint /*, args... */) {
+	var args = Array.prototype.slice(arguments, 1);
+
+	// Extract a callback, if one exists
+	var cb;
+	if (typeof(args[args.length - 1]) == 'function') {
+		cb = args[args.length - 1];
+		args = args.slice(0, args.length - 1);
+	}
+
+	if (cb) {
+		this.__call(endpoint, { args: args }, cb);
+	} else {
+		this.__callNoReturn(endpoint, { args: args }, cb);
+	}
+}
+
+RPC.prototype.__call = function(endpoint, data, cb) {
 	var seqId = ++this.__seqId;
 	this.__callbacks[seqId] = cb;
 
@@ -71,7 +97,7 @@ RPC.prototype.call = function(endpoint, data, cb) {
 	this.__writePacket(packet);
 }
 
-RPC.prototype.callNoReturn = function(endpoint, data) {
+RPC.prototype.__callNoReturn = function(endpoint, data) {
 	var packet = { call: true, seqId: 0, endpoint: endpoint, data: data };
 	this.__writePacket(packet);
 }
@@ -100,25 +126,37 @@ RPC.prototype.__processPacket = function(packet) {
 }
 
 RPC.prototype.__encodePacket = function(packet) {
-	var binary = packet.data ? packet.data.binary : null;
-	var json = (packet.data && packet.data.json) ? new Buffer(JSON.stringify(packet.data.json), 'utf8') : null;
 	var endpoint = packet.endpoint ? new Buffer(packet.endpoint, 'utf8') : null;
+	var data = packet.data ? packet.data : [];
 
 	var capacity = 1;
 	capacity += 4; // seqId
 	if (endpoint)
 		capacity += 4 + endpoint.length;
-	if (binary)
-		capacity += 4 + binary.length;
-	if (json)
-		capacity += 4 + json.length;
+
+	var types = [];
+	var encodings = [];
+	for (var i = 0; i < data.length; i++) {
+		var obj = data[i];
+		if (obj === null || obj === undefined) {
+			encodings[i] = null;
+			types[i] = TYPE_NULL;
+			capacity++;
+		} else if (obj instanceof Buffer) {
+			encodings[i] = obj;
+			types[i] = TYPE_BINARY;
+			capacity += 5 + encodings[i].length;
+		} else {
+			encodings[i] = new Buffer(JSON.stringify(obj), 'utf8');
+			types[i] = TYPE_JSON;
+			capacity += 5 + encodings[i].length;
+		}
+	}
 
 	var buf = new Buffer(capacity);
 
 	var flags = (packet.isCall ? 1 : 0) 
-			| (endpoint ? 1 << 1 : 0) 
-			| (binary ? 1 << 2 : 0) 
-			| (json ? 1 << 3 : 0);
+			| (endpoint ? 1 << 1 : 0);
 	buf[0] = flags;
 	var offset = 1;
 	buf.writeIntBE(packet.seqId, offset, 4);
@@ -130,24 +168,24 @@ RPC.prototype.__encodePacket = function(packet) {
 		endpoint.copy(buf, offset);
 		offset += endpoint.length;
 	}
-	if (binary) {
-		buf.writeIntBE(binary.length, offset, 4);
+
+	for (var i = 0; i < encodings.length; i++) {
+		buf[offset++] = types[i];
+		if (types[i] == TYPE_NULL)
+			continue;
+		
+		var encoding = encodings[i];
+		buf.writeIntBE(encoding.length, offset, 4);
 		offset += 4;
-		binary.copy(buf, offset);
-		offset += binary.length;
-	}
-	if (json) {
-		buf.writeIntBE(json.length, offset, 4);
-		offset += 4;
-		json.copy(buf, offset);
-		offset += json.length;
+		encoding.copy(buf, offset);
+		offset += encoding.length;
 	}
 
 	return buf;
 }
 
 RPC.prototype.__decodePacket = function(bytes) {
-	var out = { data: {} };
+	var out = { data: [] };
 	
 	var flags = bytes[0];
 	var offset = 1;
@@ -156,8 +194,6 @@ RPC.prototype.__decodePacket = function(bytes) {
 	
 	out.isCall = (flags & 1);
 	var hasEndpoint = (flags & (1 << 1));
-	var hasBinary = (flags & (1 << 2));
-	var hasJson = (flags & (1 << 3));
 	
 	if (hasEndpoint) {
 		var len = bytes.readIntBE(offset, 4);
@@ -165,19 +201,26 @@ RPC.prototype.__decodePacket = function(bytes) {
 		out.endpoint = bytes.toString('utf8', offset, offset + len);
 		offset += len;
 	}
-	
-	if (hasBinary) {
-		var len = bytes.readIntBE(offset, 4);
-		offset += 4;
-		out.data.binary = bytes.slice(offset, offset + len);
-		offset += len;
-	}
-	
-	if (hasJson) {
-		var len = bytes.readIntBE(offset, 4);
-		offset += 4;
-		out.data.json = JSON.parse(bytes.toString('utf8', offset, offset + len));
-		offset += len;
+
+	for (var i = offset; i < bytes.length; i++) {
+		switch (bytes[i]) {
+		case TYPE_NULL:
+			out.data.push(null);
+			break;
+		case TYPE_BINARY: {
+			var length = bytes.readIntBE(i + 1, 4);
+			out.data.push(bytes.slice(i + 5, i + 5 + length));
+			i += 4 + length;
+			break;
+		}
+		case TYPE_JSON: {
+			var length = bytes.readIntBE(i + 1, 4);
+			var s = bytes.toString('utf8', i + 5, i + 5 + length);
+			out.data.push(JSON.parse(s));
+			i += 4 + length;
+			break;
+		}
+		}
 	}
 	
 	return out;
