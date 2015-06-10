@@ -22,8 +22,6 @@ RPC.prototype.getName = function() {
 }
 
 RPC.prototype.start = function(pipe) {
-	console.log(pipe);
-
 	if (os.platform() == "windows") {
 		// net.server
 	} else {
@@ -73,7 +71,7 @@ RPC.prototype.registerEndpoint = function(endpoint, fn) {
  * the function.
  */
 RPC.prototype.call = function(endpoint /*, args... */) {
-	var args = Array.prototype.slice(arguments, 1);
+	var args = Array.prototype.slice.call(arguments, 1);
 
 	// Extract a callback, if one exists
 	var cb;
@@ -83,9 +81,9 @@ RPC.prototype.call = function(endpoint /*, args... */) {
 	}
 
 	if (cb) {
-		this.__call(endpoint, { args: args }, cb);
+		this.__call(endpoint, args, cb);
 	} else {
-		this.__callNoReturn(endpoint, { args: args }, cb);
+		this.__callNoReturn(endpoint, args, cb);
 	}
 }
 
@@ -105,14 +103,14 @@ RPC.prototype.__callNoReturn = function(endpoint, data) {
 RPC.prototype.__processPacket = function(packet) {
 	if (packet.endpoint) {
 		if (this.__endpoints[packet.endpoint]) {
-			var returnValue = this.__endpoints[packet.endpoint](packet.data);
+			var returnValue = this.__endpoints[packet.endpoint].apply(null, packet.data);
 			// TODO: try/catch
 			if (packet.seqId) {
 				// Send it back!
 				this.__writePacket({ isCall: false, seqId: packet.seqId, data: returnValue });
 			}
 		} else {
-			console.log("Endpoint not found: " + packet.endpoint);
+			this.__log("Endpoint not found: " + packet.endpoint);
 		}
 	} else {
 		var cb = this.__callbacks[packet.seqId];
@@ -120,7 +118,7 @@ RPC.prototype.__processPacket = function(packet) {
 			delete this.__callbacks[packet.seqId];
 			cb(packet.data);
 		} else {
-			console.log("Callback not found: " + packet.seqId);
+			this.__log("Callback not found: " + packet.seqId);
 		}
 	}
 }
@@ -277,9 +275,17 @@ RPC.prototype.__onRead = function(err, bytesRead, buffer) {
 };
 
 RPC.prototype.__die = function(reason) {
-	console.log("DIE: " + reason);
+	this.__log("DIE: " + reason);
 	process.exit(1);
 };
+
+RPC.prototype.__log = function() {
+	try {
+		console.log.apply(console, arguments);
+	} catch (e) {
+		// This can fail if electron is in a bad state (ie: shutting down)
+	}
+}
 
 var rpc = new RPC();
 

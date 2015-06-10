@@ -51,7 +51,10 @@ function initialize(options) {
 
 	// Start RPC
 	try {
-		rpc.start();
+		if (process.env.PIPE)
+			rpc.start(process.env.PIPE);
+		else
+			rpc.start();
 	} catch (e) {
 		console.log("Failed to initialize RPC", e);
 		throw e;
@@ -85,5 +88,9 @@ module.exports = {
 
 	registerEndpoint: function(endpoint, handler) {
 		rpc.registerEndpoint(endpoint, handler);
+	},
+
+	call: function() {
+		rpc.call.apply(rpc, arguments);
 	}
 };
