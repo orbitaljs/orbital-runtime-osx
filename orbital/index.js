@@ -1,9 +1,9 @@
-var jvm = require('bindings')('jvm');
 var rpc = require('./rpc');
 var path = require('path');
 var process = require('process');
 var fs = require('fs');
 var app = require('app');
+var child_process = require('child_process');
 
 var initialized = false;
 
@@ -19,38 +19,9 @@ function initialize(options) {
 
 	initialized = true;
 
-	// TODO: all these paths assume a mac-style .app package
-	// This is obviously not going to work on windows
-
-	// If we've been passed the PIPE environment variable, that means we're in inverted mode
-	if (!process.env.PIPE) {
-		console.log("Initializing JVM");
-		try {
-			var jvmPath = path.join(module.filename, "../../../../Java/lib/server/libjvm.dylib");
-			console.log(jvmPath);
-			jvm.load(jvmPath);
-			var jarFolder = path.join(module.filename, "../../../../Java");
-			var files = fs.readdirSync(jarFolder);
-			var cp = [];
-			files.forEach(function(file) {
-				if (file.indexOf('.jar') != -1) {
-					cp.push(jarFolder + "/" + file);
-				}
-			});
-
-			console.log(cp);
-
-			// TODO: semicolon on windows
-			jvm.init("-verbose:class", "-Djava.class.path=" + cp.join(':'));
-			jvm.run(options.main);
-		} catch (e) {
-			console.log("Failed to initialize the JVM", e);
-			throw e;
-		}
-	}
-
 	// Start RPC
 	try {
+		console.log("Initializing RPC");
 		if (process.env.PIPE)
 			rpc.start(process.env.PIPE);
 		else
@@ -60,25 +31,65 @@ function initialize(options) {
 		throw e;
 	}
 
-	// Set up protocol handler
-	app.on('ready', function() {
-		var rootWebPath = process.env.WEB_PATH 
-			? process.env.WEB_PATH 
-			: path.join(module.filename, "../../../../Resources/web");
-		console.log("Web path root: ", rootWebPath);
+	// TODO: all these paths assume a mac-style .app package
+	// This is obviously not going to work on windows
 
-		var protocol = require('protocol');
-		protocol.registerProtocol('app', function(request) {
-			var url = request.url.slice(4);
-			if (url.slice(-1) == '/')
-				url += "index.html";
-			if (url.indexOf('#') != -1)
-				url = url.slice(0, url.indexOf('#'));
-			var file = path.normalize(rootWebPath + '/' + url);
-			console.log(file);
-			return new protocol.RequestFileJob(file);
-		});
-	}); 
+	// If we've been passed the PIPE environment variable, that means we're in inverted mode
+	if (!process.env.PIPE) {
+
+		console.log("Initializing JVM");
+		try {
+			var jvmPath = path.join(module.filename, "../../../../Java/bin/java");
+
+			var jarFolder = path.join(module.filename, "../../../../Java");
+			var files = fs.readdirSync(jarFolder);
+			var cp = [];
+			files.forEach(function(file) {
+				if (file.indexOf('.jar') != -1) {
+					cp.push(jarFolder + "/" + file);
+				}
+			});
+
+			var opts = { 
+				env: process.env,
+				stdio: ['ignore', process.stdout, process.stderr]
+			};
+
+			var args = [ 
+				// "-verbose:class", 
+				"-cp", cp.join(':'), 
+				'-DPIPE=' + rpc.getName(),
+				'-DMAIN=' + options.main,
+				"com.codano.orbital.OrbitalAppMain"
+			];
+
+			console.log(jvmPath, args, opts);
+
+			child_process.spawn(jvmPath, args, opts);
+
+			// var node = process.platform == 'darwin' 
+			// 	? path.resolve(process.resourcesPath, '..', 'Frameworks',
+   //                   'Electron Helper.app', 'Contents', 'MacOS', 'Electron Helper')
+			// 	: process.execPath;
+
+			// console.log(node);
+			// var opts = { 
+			// 	env: {},
+			// 	stdio: ['ignore', process.stdout, process.stderr]
+			// };
+			// opts.env['ATOM_SHELL_INTERNAL_RUN_AS_NODE'] = 1;
+			// opts.env['PIPE'] = rpc.getName();
+			// opts.env['MAIN'] = options.main;
+
+			// var shim = path.resolve(__dirname, 'shim.js');
+			// console.log(node, shim);
+
+			// var jvm = child_process.spawn(node, [ shim ], opts);
+		} catch (e) {
+			console.log("Failed to initialize the JVM", e);
+			throw e;
+		}
+	}
 }
 
 module.exports = {

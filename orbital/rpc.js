@@ -15,6 +15,7 @@ var RPC = function() {
 	this.__endpoints = {};
 	this.__callbacks = {};
 	this.__readBuffer = new Buffer(1024 * 1024);
+	this.__queuedPackets = [];
 }
 
 RPC.prototype.getName = function() {
@@ -28,6 +29,8 @@ RPC.prototype.start = function(pipe) {
 		if (pipe === undefined) {
 			pipe = os.tmpdir() + "/ipc" + require('crypto').randomBytes(32).toString('hex');
 		}
+
+		console.log("RPC pipe (fifo): " + pipe);
 
 		this.__name = pipe;
 
@@ -46,15 +49,22 @@ RPC.prototype.start = function(pipe) {
 
 		// We write to the 'i' pipe
 		fs.open(pipe + "/fifo/i", "w", function(err, fd) {
+			console.log("RPC (i) pipe open");
 			this.__writeFd = fd;
 			this.__writer = fs.createWriteStream(null, { fd: fd });
 			this.__writer.on('end', function() {
 				this.__die("Write pipe closed");
 			});
+
+			while (this.__queuedPackets.length > 0) {
+				var packet = this.__queuedPackets.shift();
+				this.__writePacket(packet);
+			}
 		}.bind(this));
 
 		// We read from the 'o' pipe
 		fs.open(pipe + "/fifo/o", "r", function(err, fd) {
+			console.log("RPC (o) pipe open");
 			this.__readFd = fd;
 			fs.read(fd, this.__readBuffer, 0, this.__readBuffer.length, null, this.__onRead.bind(this));
 		}.bind(this));
@@ -250,6 +260,11 @@ RPC.prototype.__onPacketDataReceived = function(chunk) {
 }
 
 RPC.prototype.__writePacket = function(packet) {
+	if (!this.__writer) {
+		this.__queuedPackets.push(packet);
+		return;
+	}
+
 	this.__writer.write(SYNC_BYTE, this.__checkWrite.bind(this));
 
 	var buf = this.__encodePacket(packet);

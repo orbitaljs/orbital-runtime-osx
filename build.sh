@@ -69,7 +69,15 @@ mv jdk/Contents/Home/jre Electron.app/Contents/Java
 
 cd Electron.app/Contents/Java 
 
-rm -rf bin/
+# We want the java executable
+find bin -type f -not -name 'java' | xargs rm
+chmod a+x bin/*
+
+# This is necessary for launching processes
+# http://mail.openjdk.java.net/pipermail/macosx-port-dev/2014-July/006662.html
+chmod a+x lib/jspawnhelper
+
+# Remove the javaws/plugin cruft 
 rm -rf lib/deploy/
 rm -rf lib/deploy.jar
 rm -rf lib/javaws.jar

@@ -60,14 +60,21 @@ void RunMain(const v8::FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  jmethodID mid = env->GetStaticMethodID(cls, "main", "([Ljava/lang/String;)V");
+  jmethodID mid = env->GetStaticMethodID(cls, "main", "(Ljava/lang/String;)V");
   if (!mid) {
     isolate->ThrowException(Exception::TypeError(
-        String::NewFromUtf8(isolate, "Main not found")));  	
+        String::NewFromUtf8(isolate, "com.codano.codano.OrbitalAppMain::main() not found")));  	
     return;
   }
 
-  env->CallStaticVoidMethod(cls, mid, *value);
+  jstring arg = env->NewStringUTF(*value);
+  env->CallStaticVoidMethod(cls, mid, arg);
+  if (env->ExceptionCheck()) {
+    isolate->ThrowException(Exception::TypeError(
+        String::NewFromUtf8(isolate, "com.codano.codano.OrbitalAppMain threw an exception")));   
+    return;
+  }
+
   args.GetReturnValue().Set(Number::New(isolate, 0));
 }
 
