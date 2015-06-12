@@ -16,7 +16,7 @@ then
 	echo "OSX JDK already downloaded, skipping"
 else
 	wget -P _dl --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie;" \
-		http://download.oracle.com/otn-pub/java/jdk/8u45-b15/jdk-8u45-macosx-x64.dmg
+		http://download.oracle.com/otn-pub/java/jdk/8u45-b14/jdk-8u45-macosx-x64.dmg
 fi
 
 if [ -f _dl/electron-v0.28.0-darwin-x64.zip ];
