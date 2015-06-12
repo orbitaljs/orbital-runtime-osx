@@ -70,6 +70,7 @@ cd Electron.app/Contents/Java
 
 # We want the java executable
 find bin -type f -not -name 'java' | xargs rm
+find . -type d | xargs rmdir 2> /dev/null || true
 chmod a+x bin/*
 
 # This is necessary for launching processes
@@ -90,12 +91,9 @@ cd $BUILD_DIR
 echo Installing native code
 mkdir -p Electron.app/Contents/lib/node
 
-cd $DIR/orbital
+cd $DIR/orbital-js/orbital
 
-export npm_config_disturl=https://atom.io/download/atom-shell
-export npm_config_target=0.25.0
-export npm_config_arch=x64
-HOME=~/.electron-gyp npm install >> $BUILD_DIR/log
+npm install >> $BUILD_DIR/log
 
 cd $DIR
-cp -aR orbital $BUILD_DIR/Electron.app/Contents/lib/node/orbital
+cp -aR orbital-js/orbital $BUILD_DIR/Electron.app/Contents/lib/node/orbital
