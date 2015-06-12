@@ -9,6 +9,10 @@ cache:
 #   - sudo apt-get -q update
 #   - sudo apt-get -y install p7zip-full
 
+addons:
+  apt_packages:
+    - p7zip-full 
+
 script:
     - bash build.sh
 
