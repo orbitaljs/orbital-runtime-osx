@@ -1,6 +1,10 @@
 language: bash
 sudo: required
 
+cache:
+  directories:
+  - _dl
+
 before_install:
   - sudo apt-get -q update
   - sudo apt-get -y install p7zip-full
